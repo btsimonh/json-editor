@@ -125,6 +125,12 @@ JSONEditor.AbstractEditor = Class.extend({
     if(this.schema.headerTemplate) {
       this.header_template = this.jsoneditor.compileTemplate(this.schema.headerTemplate, this.template_engine);
     }
+
+    // dynamic hidden
+    if(this.schema.hiddenTemplate) {
+      this.hidden_template = this.jsoneditor.compileTemplate(this.schema.hiddenTemplate, this.template_engine);
+    }
+    
   },
   
   addLinks: function() {
@@ -321,6 +327,35 @@ JSONEditor.AbstractEditor = Class.extend({
         //this.fireChangeHeaderEvent();
       }
     }
+    
+    
+    if(this.hidden_template) {      
+      vars = $extend(this.getWatchedFieldValues(),{
+        key: this.key,
+        i: this.key,
+        i0: (this.key*1),
+        i1: (this.key*1+1),
+        title: this.getTitle()
+      });
+      var hidden_text = this.hidden_template(vars);
+      if (hidden_text === "true"){
+        if (this.options.hidden !== true){
+          this.options.hidden = true;
+          this.container.style.display = 'none';
+          //this.container.hide();
+          this.notify();
+        }
+      } else {
+        if (this.options.hidden !== false){
+          this.options.hidden = false;
+          this.container.style.display = '';
+          //this.container.show();
+          this.notify();
+        }
+      }
+      
+    }
+    
     if(this.link_watchers.length) {
       vars = this.getWatchedFieldValues();
       for(var i=0; i<this.link_watchers.length; i++) {
