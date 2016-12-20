@@ -373,7 +373,13 @@ JSONEditor.prototype = {
       waiting++;
 
       var r = new XMLHttpRequest(); 
-      r.open("GET", url, true);
+      
+      var nocacheurl = url;
+      if (self.options.nocacherefs){
+          nocacheurl = url + '?rand=' + Math.random();
+      }
+      
+      r.open("GET", nocacheurl, true);
       r.onreadystatechange = function () {
         if (r.readyState != 4) return; 
         // Request succeeded
