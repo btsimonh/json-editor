@@ -339,8 +339,9 @@ JSONEditor.prototype = {
         }
       }
     };
-    
-    if(schema.$ref && typeof schema.$ref !== "object" && schema.$ref.substr(0,1) !== "#" && !this.refs[schema.$ref]) {
+
+    // get all refs, including ones starting with hash
+    if(schema.$ref && typeof schema.$ref !== "object" /*&& schema.$ref.substr(0,1) !== "#"*/ && !this.refs[schema.$ref]) {
       refs[schema.$ref] = true;
     }
     
@@ -367,6 +368,10 @@ JSONEditor.prototype = {
     var done = 0, waiting = 0, callback_fired = false;
     
     $each(refs,function(url) {
+      // ignore urls starting with '#'
+      if (url.slice(0,1) === '#') 
+          return;
+        
       if(self.refs[url]) return;
       if(!self.options.ajax) throw "Must set ajax option to true to load external ref "+url;
       self.refs[url] = 'loading';
@@ -411,6 +416,34 @@ JSONEditor.prototype = {
       };
       r.send();
     });
+
+    // convert from x/y/z to x.y.z
+    var getschemalocation = function( str, schema ){
+        var props = str.split('/');
+        var loc = schema;
+        for (var i = 0; i < props.length; i++){
+            if (loc.hasOwnProperty(props[i])){
+                if (i === props.length - 1){
+                    return loc[props[i]];
+                } else {
+                    loc = loc[props[i]];
+                }
+            }
+        }
+        return null;
+    };
+    
+    // for all urls which start with #
+    // add thier pointers to self.refs now
+    $each(refs,function(url) {
+      // use urls starting with '#'
+      if (url.slice(0,1) !== '#') 
+          return;
+      var loc = getschemalocation( url.slice(2), schema );
+      if (loc)
+        self.refs[url] = loc;
+    });
+
     
     if(!waiting) {
       callback();
