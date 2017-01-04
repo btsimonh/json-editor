@@ -145,7 +145,8 @@ JSONEditor.defaults.editors.object = JSONEditor.AbstractEditor.extend({
           var editor = this.editors[key];
 
           if(editor.options.hidden) editor.container.style.display = 'none';
-          else this.theme.setGridColumnSize(editor.container,rows[i].editors[j].width);
+          //else 
+          this.theme.setGridColumnSize(editor.container,rows[i].editors[j].width);
           row.appendChild(editor.container);
         }
       }
@@ -160,7 +161,8 @@ JSONEditor.defaults.editors.object = JSONEditor.AbstractEditor.extend({
         container.appendChild(row);
 
         if(editor.options.hidden) editor.container.style.display = 'none';
-        else self.theme.setGridColumnSize(editor.container,12);
+        //else 
+        self.theme.setGridColumnSize(editor.container,12);
         row.appendChild(editor.container);
       });
     }
