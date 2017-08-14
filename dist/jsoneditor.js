@@ -552,8 +552,9 @@ JSONEditor.prototype = {
         }
       }
     };
-    
-    if(schema.$ref && typeof schema.$ref !== "object" && schema.$ref.substr(0,1) !== "#" && !this.refs[schema.$ref]) {
+
+    // get all refs, including ones starting with hash
+    if(schema.$ref && typeof schema.$ref !== "object" /*&& schema.$ref.substr(0,1) !== "#"*/ && !this.refs[schema.$ref]) {
       refs[schema.$ref] = true;
     }
     
@@ -580,13 +581,23 @@ JSONEditor.prototype = {
     var done = 0, waiting = 0, callback_fired = false;
     
     $each(refs,function(url) {
+      // ignore urls starting with '#'
+      if (url.slice(0,1) === '#') 
+          return;
+        
       if(self.refs[url]) return;
       if(!self.options.ajax) throw "Must set ajax option to true to load external ref "+url;
       self.refs[url] = 'loading';
       waiting++;
 
       var r = new XMLHttpRequest(); 
-      r.open("GET", url, true);
+      
+      var nocacheurl = url;
+      if (self.options.nocacherefs){
+          nocacheurl = url + '?rand=' + Math.random();
+      }
+      
+      r.open("GET", nocacheurl, true);
       r.onreadystatechange = function () {
         if (r.readyState != 4) return; 
         // Request succeeded
@@ -618,6 +629,34 @@ JSONEditor.prototype = {
       };
       r.send();
     });
+
+    // convert from x/y/z to x.y.z
+    var getschemalocation = function( str, schema ){
+        var props = str.split('/');
+        var loc = schema;
+        for (var i = 0; i < props.length; i++){
+            if (loc.hasOwnProperty(props[i])){
+                if (i === props.length - 1){
+                    return loc[props[i]];
+                } else {
+                    loc = loc[props[i]];
+                }
+            }
+        }
+        return null;
+    };
+    
+    // for all urls which start with #
+    // add thier pointers to self.refs now
+    $each(refs,function(url) {
+      // use urls starting with '#'
+      if (url.slice(0,1) !== '#') 
+          return;
+      var loc = getschemalocation( url.slice(2), schema );
+      if (loc)
+        self.refs[url] = loc;
+    });
+
     
     if(!waiting) {
       callback();
@@ -1511,6 +1550,12 @@ JSONEditor.AbstractEditor = Class.extend({
     if(this.schema.headerTemplate) {
       this.header_template = this.jsoneditor.compileTemplate(this.schema.headerTemplate, this.template_engine);
     }
+
+    // dynamic hidden
+    if(this.schema.hiddenTemplate) {
+      this.hidden_template = this.jsoneditor.compileTemplate(this.schema.hiddenTemplate, this.template_engine);
+    }
+    
   },
   
   addLinks: function() {
@@ -1707,6 +1752,35 @@ JSONEditor.AbstractEditor = Class.extend({
         //this.fireChangeHeaderEvent();
       }
     }
+    
+    
+    if(this.hidden_template) {      
+      vars = $extend(this.getWatchedFieldValues(),{
+        key: this.key,
+        i: this.key,
+        i0: (this.key*1),
+        i1: (this.key*1+1),
+        title: this.getTitle()
+      });
+      var hidden_text = this.hidden_template(vars);
+      if (hidden_text === "true"){
+        if (this.options.hidden !== true){
+          this.options.hidden = true;
+          this.container.style.display = 'none';
+          //this.container.hide();
+          this.notify();
+        }
+      } else {
+        if (this.options.hidden !== false){
+          this.options.hidden = false;
+          this.container.style.display = '';
+          //this.container.show();
+          this.notify();
+        }
+      }
+      
+    }
+    
     if(this.link_watchers.length) {
       vars = this.getWatchedFieldValues();
       for(var i=0; i<this.link_watchers.length; i++) {
@@ -2486,7 +2560,8 @@ JSONEditor.defaults.editors.object = JSONEditor.AbstractEditor.extend({
           var editor = this.editors[key];
 
           if(editor.options.hidden) editor.container.style.display = 'none';
-          else this.theme.setGridColumnSize(editor.container,rows[i].editors[j].width);
+          //else 
+          this.theme.setGridColumnSize(editor.container,rows[i].editors[j].width);
           row.appendChild(editor.container);
         }
       }
@@ -2501,7 +2576,8 @@ JSONEditor.defaults.editors.object = JSONEditor.AbstractEditor.extend({
         container.appendChild(row);
 
         if(editor.options.hidden) editor.container.style.display = 'none';
-        else self.theme.setGridColumnSize(editor.container,12);
+        //else 
+        self.theme.setGridColumnSize(editor.container,12);
         row.appendChild(editor.container);
       });
     }
@@ -4572,6 +4648,12 @@ JSONEditor.defaults.editors.multiple = JSONEditor.AbstractEditor.extend({
     this.container.appendChild(this.header);
 
     this.switcher = this.theme.getSwitcher(this.display_text);
+
+    // Disable the type switcher if specified
+    if(this.jsoneditor.options.disable_type_switcher){
+      this.switcher.style.display = "none";
+    }
+
     container.appendChild(this.switcher);
     this.switcher.addEventListener('change',function(e) {
       e.preventDefault();
